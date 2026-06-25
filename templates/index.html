@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>抽卡游戏</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; background: #f7f7f7; }
+        .card { background: white; border-radius: 12px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+        button:hover { opacity: 0.8; }
+        .result-area { margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; }
+        ul { list-style: none; padding: 0; }
+        li { padding: 5px 0; border-bottom: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <h1>🎴 抽卡模拟器</h1>
+    <div class="card">
+        <h3>💰 当前金币：<span id="coinDisplay">0</span></h3>
+        <div>
+            <input type="number" id="rechargeAmount" value="10" style="width:100px;">
+            <button onclick="recharge()">💎 充值</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <button onclick="singleDraw()">🎲 单抽</button>
+        <button onclick="tenDraw()">🔥 十连</button>
+    </div>
+
+    <div class="result-area" id="resultArea">
+        <p>抽卡结果会在这里显示</p>
+    </div>
+
+    <script>
+        // ---------- 工具函数：更新金币显示 ----------
+        function updateCoin() {
+            fetch('/api/coin')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('coinDisplay').textContent = data.coin;
+                })
+                .catch(err => console.error('获取金币失败', err));
+        }
+
+        // ---------- 充值 ----------
+        function recharge() {
+            const amount = document.getElementById('rechargeAmount').value;
+            if (!amount || amount <= 0) {
+                alert('请输入有效的充值金额');
+                return;
+            }
+            fetch(`/api/top_up/${amount}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        updateCoin();
+                        document.getElementById('resultArea').innerHTML = `<p>✅ ${data.message}</p>`;
+                    } else {
+                        document.getElementById('resultArea').innerHTML = `<p>❌ ${data.message}</p>`;
+                    }
+                })
+                .catch(err => console.error('充值失败', err));
+        }
+
+        // ---------- 单抽 ----------
+        function singleDraw() {
+            fetch('/api/single_draw')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const r = data.data;
+                        document.getElementById('resultArea').innerHTML = `
+                            <h3>🎉 单抽结果</h3>
+                            <p><strong>${r.name}</strong>（${r.star_rating}星）<br>${r.introduction}</p>
+                        `;
+                        updateCoin();
+                    } else {
+                        document.getElementById('resultArea').innerHTML = `<p>❌ ${data.message}</p>`;
+                    }
+                })
+                .catch(err => console.error('单抽失败', err));
+        }
+
+        // ---------- 十连 ----------
+        function tenDraw() {
+            fetch('/api/ten_draw')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        let listHtml = data.data.map((r, idx) => 
+                            `<li>${idx+1}. ${r.name}（${r.star_rating}星）— ${r.introduction}</li>`
+                        ).join('');
+                        document.getElementById('resultArea').innerHTML = `
+                            <h3>🔥 十连结果</h3>
+                            <ul>${listHtml}</ul>
+                        `;
+                        updateCoin();
+                    } else {
+                        document.getElementById('resultArea').innerHTML = `<p>❌ ${data.message}</p>`;
+                    }
+                })
+                .catch(err => console.error('十连失败', err));
+        }
+
+        // ---------- 页面加载时显示金币 ----------
+        window.onload = function() {
+            updateCoin();
+        };
+    </script>
+</body>
+</html>
